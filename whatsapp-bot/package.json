@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest"
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
   },
   "keywords": ["whatsapp", "bot", "merchant", "cod-shield"],
   "author": "MillionX Team",
@@ -22,5 +23,15 @@
     "nodemon": "^3.0.2",
     "jest": "^29.7.0",
     "supertest": "^6.3.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "*.js",
+      "!coverage/**",
+      "!node_modules/**",
+      "!tests/**"
+    ]
   }
 }

@@ -1,0 +1,19 @@
+# Dockerignore file for FastAPI Risk Engine
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+tests/
+.git/
+.gitignore
+README.md

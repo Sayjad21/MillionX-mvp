@@ -1,0 +1,10 @@
+# Dockerignore file for WhatsApp Bot
+node_modules/
+npm-debug.log
+.env
+.git/
+.gitignore
+tests/
+coverage/
+*.md
+.DS_Store
