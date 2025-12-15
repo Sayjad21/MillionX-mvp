@@ -1,0 +1,295 @@
+const express = require('express');
+const axios = require('axios');
+require('dotenv').config();
+
+const app = express();
+app.use(express.json());
+
+// Configuration
+const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'millionx_verify_token_123';
+const PORT = process.env.PORT || 3000;
+
+// ============= WEBHOOK VERIFICATION =============
+app.get('/webhook/whatsapp', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    
+    console.log('📞 Webhook verification attempt:', { mode, token });
+    
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+        console.log('✅ Webhook verified successfully!');
+        res.status(200).send(challenge);
+    } else {
+        console.log('❌ Webhook verification failed');
+        res.sendStatus(403);
+    }
+});
+
+// ============= WEBHOOK MESSAGE HANDLER =============
+app.post('/webhook/whatsapp', async (req, res) => {
+    console.log('📨 Incoming webhook:', JSON.stringify(req.body, null, 2));
+    
+    try {
+        // Extract message from webhook payload
+        const entry = req.body.entry?.[0];
+        const changes = entry?.changes?.[0];
+        const value = changes?.value;
+        const messages = value?.messages;
+        
+        if (!messages || messages.length === 0) {
+            console.log('⚠️ No messages in webhook payload');
+            return res.sendStatus(200);
+        }
+        
+        const message = messages[0];
+        const from = message.from;
+        const messageType = message.type;
+        
+        console.log(`📱 Message from ${from}, type: ${messageType}`);
+        
+        let response = '';
+        
+        // Handle text messages
+        if (messageType === 'text') {
+            const text = message.text.body.toLowerCase();
+            response = await routeTextMessage(text, from);
+        } 
+        // Handle image uploads
+        else if (messageType === 'image') {
+            response = await handleImageUpload(message);
+        } 
+        // Other message types
+        else {
+            response = '🤖 Sorry, I can only handle text messages and images for now.';
+        }
+        
+        // Send response back to user
+        await sendWhatsAppMessage(from, response);
+        
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('❌ Error processing message:', error);
+        res.sendStatus(500);
+    }
+});
+
+// ============= MESSAGE ROUTING =============
+async function routeTextMessage(text, from) {
+    console.log(`🔍 Routing message: "${text}" from ${from}`);
+    
+    // Intent: Profit/Revenue Query
+    if (text.match(/labh|profit|income|revenue|earning/)) {
+        return await handleProfitQuery(from);
+    }
+    
+    // Intent: Inventory Check
+    if (text.match(/inventory|stock|product/)) {
+        return await handleInventoryQuery(from);
+    }
+    
+    // Intent: Risk Check
+    if (text.match(/risk check/)) {
+        const phone = extractPhoneNumber(text);
+        if (phone) {
+            return await handleRiskCheck(phone);
+        } else {
+            return '❌ Please provide phone number.\nExample: "risk check +8801712345678"';
+        }
+    }
+    
+    // Intent: Report Fraudster (NETWORK EFFECT!)
+    if (text.match(/report/)) {
+        const phone = extractPhoneNumber(text);
+        if (phone) {
+            return await handleReportFraudster(phone, from);
+        } else {
+            return '❌ Please provide phone number to report.\nExample: "report +8801712345678"';
+        }
+    }
+    
+    // Default: Help message
+    return getHelpMessage();
+}
+
+// ============= INTENT HANDLERS =============
+async function handleProfitQuery(merchantPhone) {
+    console.log(`💰 Handling profit query for ${merchantPhone}`);
+    
+    // TODO: Query Supabase for actual data
+    // For MVP, return mock data
+    return `📊 *December Profit Summary*\n\n` +
+           `💰 Revenue: Tk 45,300\n` +
+           `💸 Costs: Tk 32,100\n` +
+           `✅ *Net Profit: Tk 13,200* (+18% vs Nov)\n\n` +
+           `🔥 Top seller: Blue T-shirt (45 units)\n` +
+           `📦 Total orders: 127`;
+}
+
+async function handleInventoryQuery(merchantPhone) {
+    console.log(`📦 Handling inventory query for ${merchantPhone}`);
+    
+    // TODO: Query actual inventory from database
+    // For MVP, return mock data
+    return `📦 *Inventory Alert*\n\n` +
+           `⚠️ *Low Stock Items:*\n` +
+           `• Blue T-shirt - 8 left\n` +
+           `• Red Hoodie - 5 left\n` +
+           `• Black Cap - 3 left\n\n` +
+           `💡 Tip: Restock Blue T-shirt soon (trending!)`;
+}
+
+async function handleRiskCheck(phone) {
+    console.log(`🛡️ Checking risk for ${phone}`);
+    
+    try {
+        const response = await axios.post(`${FASTAPI_URL}/api/v1/risk-score`, {
+            order_id: `MANUAL-${Date.now()}`,
+            merchant_id: 'DEMO-MERCHANT',
+            customer_phone: phone,
+            delivery_address: {
+                area: 'Unknown',
+                city: 'Dhaka',
+                postal_code: ''
+            },
+            order_details: {
+                total_amount: 500,
+                currency: 'BDT',
+                items_count: 1,
+                is_first_order: false
+            },
+            timestamp: new Date().toISOString()
+        });
+        
+        const data = response.data;
+        
+        return `🛡️ *COD Shield Risk Check*\n\n` +
+               `📞 Phone: ${phone}\n` +
+               `📊 Risk Score: *${data.risk_score}/100*\n` +
+               `⚠️ Risk Level: *${data.risk_level}*\n\n` +
+               `💡 *Recommendation:*\n${data.recommendation.replace(/_/g, ' ')}\n\n` +
+               `✅ *Suggested Actions:*\n${data.suggested_actions.map((a, i) => `${i + 1}. ${a}`).join('\n')}`;
+    } catch (error) {
+        console.error('❌ Risk check failed:', error.message);
+        return '❌ Risk check failed. Please try again or contact support.';
+    }
+}
+
+async function handleReportFraudster(phone, reporterPhone) {
+    console.log(`🚨 Reporting fraudster ${phone} by ${reporterPhone}`);
+    
+    try {
+        const response = await axios.post(`${FASTAPI_URL}/api/v1/blacklist/add`, null, {
+            params: {
+                phone: phone,
+                reason: `Reported by merchant ${reporterPhone}`
+            }
+        });
+        
+        const data = response.data;
+        
+        return `🚨 *Fraudster Reported!*\n\n` +
+               `📞 Phone: ${phone}\n` +
+               `✅ Added to network blacklist\n` +
+               `📊 Total reports: ${data.total_hits}\n\n` +
+               `💪 Thanks for protecting the community!`;
+    } catch (error) {
+        console.error('❌ Report failed:', error.message);
+        return '❌ Failed to report. Please try again.';
+    }
+}
+
+async function handleImageUpload(message) {
+    console.log('📷 Image upload received');
+    
+    // TODO: Phase 2 - Download and process image for product cataloging
+    return `📷 *Image Received!*\n\n` +
+           `✅ Image saved for processing\n` +
+           `🚧 Auto-cataloging coming in Phase 2!\n\n` +
+           `For now, please add product details manually.`;
+}
+
+// ============= HELPER FUNCTIONS =============
+function extractPhoneNumber(text) {
+    // Extract phone number from text (Bangladesh format)
+    const phoneRegex = /\+?880\d{10}|\+?\d{11,15}/;
+    const match = text.match(phoneRegex);
+    return match ? match[0] : null;
+}
+
+function getHelpMessage() {
+    return `🤖 *Bhai-Bot here!*\n\n` +
+           `I can help you with:\n\n` +
+           `💰 *"labh koto?"* - Check your profit\n` +
+           `📦 *"inventory check"* - View stock status\n` +
+           `🛡️ *"risk check +880..."* - Check customer risk\n` +
+           `🚨 *"report +880..."* - Report a fraudster\n` +
+           `📷 *Send image* - Add product (coming soon!)\n\n` +
+           `Just type your question naturally!`;
+}
+
+async function sendWhatsAppMessage(to, text) {
+    try {
+        console.log(`📤 Sending message to ${to}`);
+        
+        const response = await axios.post(
+            `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+            {
+                messaging_product: 'whatsapp',
+                to: to,
+                text: { body: text }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        
+        console.log('✅ Message sent successfully');
+        return response.data;
+    } catch (error) {
+        console.error('❌ Failed to send message:', error.response?.data || error.message);
+        throw error;
+    }
+}
+
+// ============= HEALTH CHECK =============
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        service: 'Bhai-Bot WhatsApp Interface',
+        fastapi_url: FASTAPI_URL,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ============= ROOT ENDPOINT =============
+app.get('/', (req, res) => {
+    res.json({
+        service: 'Bhai-Bot WhatsApp API',
+        version: '1.0.0',
+        endpoints: {
+            webhook: '/webhook/whatsapp',
+            health: '/health'
+        }
+    });
+});
+
+// ============= START SERVER =============
+app.listen(PORT, () => {
+    console.log('🚀 Bhai-Bot WhatsApp server started!');
+    console.log(`📡 Listening on port ${PORT}`);
+    console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
+    console.log(`📞 Phone Number ID: ${PHONE_NUMBER_ID ? '✅ Configured' : '❌ Missing'}`);
+    console.log(`🔑 WhatsApp Token: ${WHATSAPP_TOKEN ? '✅ Configured' : '❌ Missing'}`);
+    console.log('\n💡 Configure webhook URL in Meta Dashboard:');
+    console.log(`   https://your-domain.com/webhook/whatsapp`);
+    console.log(`   Verify Token: ${VERIFY_TOKEN}\n`);
+});
+
+module.exports = app;

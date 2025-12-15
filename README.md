@@ -2,6 +2,7 @@
 
 ## 🎯 Day 0: Environment Setup ✅ COMPLETED
 ## 🎯 Day 1: FastAPI Risk Engine ✅ COMPLETED
+## 🎯 Day 2: WhatsApp Bot (Bhai-Bot) ✅ COMPLETED
 
 This guide documents the completed setup tasks for the MillionX MVP.
 
@@ -56,6 +57,47 @@ millionx-mvp/
 
 ---
 
+## ✅ Day 2: WhatsApp Bot (DAYS 0, 1, 2 COMPLETE!
+
+**Day 0, 1 & 2 Complete:** ✅ Environment, FastAPI Risk Engine, and WhatsApp Bot implemented
+
+### What's Working:
+- ✅ **COD Shield API** - Real-time fraud detection for COD orders
+- ✅ **Bhai-Bot** - WhatsApp interface for merchants (natural language)
+- ✅ **Redis Blacklist** - Phone number fraud tracking
+- ✅ **Risk Scoring Algorithm** - Multi-factor risk assessment
+- ✅ **Network Fraud Reporting** - Community-powered blacklist
+- ✅ **API Documentation** - Interactive docs at http://localhost:8000/docs
+- ✅ **Health Monitoring** - Service status for both APIs
+
+### Running Services:
+- 🚀 **FastAPI (COD Shield):** http://localhost:8000
+- 🤖 **WhatsApp Bot (Bhai-Bot):** http://localhost:3000
+
+### Next Steps:
+Ready for **Day 3: Testing & Docker Deployment
+- 🚨 **"report +880..."** - Report fraudster to network blacklist
+- 📷 **Image upload** - Product cataloging (acknowledgment only in MVP)
+- ❓ **Help** - Get list of available commands
+
+### Bot Endpoints:
+- `GET /webhook/whatsapp` - Webhook verification (for Meta)
+- `POST /webhook/whatsapp` - Message handler
+- `GET /health` - Health check
+- `GET /` - Service information
+
+### Features:
+- ✅ Natural language processing (keyword matching)
+- ✅ Real-time risk checking via COD Shield API
+- ✅ Network effect fraud reporting
+- ✅ Mock profit & inventory queries
+- ✅ Image upload acknowledgment
+- ✅ Bilingual support (English & Benglish)
+
+**Server Status:** Running on http://localhost:3000 🚀
+
+---
+
 ## 🎉 Phase 1 MVP Status: COMPLETE!
 
 **Day 0 & Day 1 Complete:** ✅ Environment setup and FastAPI Risk Engine implemented
@@ -72,12 +114,19 @@ Ready for **Day 2: WhatsApp Bot Implementation** or **Day 3: Testing & Docker**
 
 ### Quick Start:
 ```bash
-# Start FastAPI server
+# Terminal 1: Start FastAPI server
 cd fastapi-risk-engine
 python main.py
 
-# Access API docs
-open http://localhost:8000/docs
+# Terminal 2: Start WhatsApp Bot
+cd whatsapp-bot
+node index.js
+
+# Access services
+# - FastAPI Docs: http://localhost:8000/docs
+# - WhatsApp Bot: http://localhost:3000
+# - FastAPI Health: http://localhost:8000/health
+# - Bot Health: http://localhost:3000/health
 
 # Test risk scoring
 curl -X POST http://localhost:8000/api/v1/risk-score \
