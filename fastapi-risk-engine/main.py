@@ -227,16 +227,22 @@ async def calculate_risk(order: OrderData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Risk calculation failed: {str(e)}")
 
+class BlacklistRequest(BaseModel):
+    phone: str
+    reason: str = "Failed delivery"
+    merchant_id: str
+
 @app.post("/api/v1/blacklist/add")
-async def add_to_blacklist(phone: str, reason: str = "Failed delivery"):
+async def add_to_blacklist(request: BlacklistRequest):
     """
     Add a phone number to the blacklist
     
     - **phone**: Phone number to blacklist
     - **reason**: Reason for blacklisting
+    - **merchant_id**: ID of merchant reporting
     """
     try:
-        blacklist_key = f"blacklist:{phone}"
+        blacklist_key = f"blacklist:{request.phone}"
         current_hits = redis_client.get(blacklist_key)
         
         if current_hits:
@@ -248,21 +254,21 @@ async def add_to_blacklist(phone: str, reason: str = "Failed delivery"):
         redis_client.expire(blacklist_key, 86400 * 30)  # 30 days TTL
         
         return {
-            "status": "success",
-            "phone": phone,
+            "status": "added",
+            "phone": request.phone,
             "total_hits": new_hits,
-            "reason": reason
+            "reason": request.reason
         }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blacklist update failed: {str(e)}")
 
-@app.get("/api/v1/blacklist/check/{phone}")
+@app.get("/api/v1/blacklist/check")
 async def check_blacklist_status(phone: str):
     """
     Check if a phone number is blacklisted
     
-    - **phone**: Phone number to check
+    - **phone**: Phone number to check (query parameter)
     """
     hits = check_blacklist(phone)
     

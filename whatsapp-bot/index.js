@@ -73,7 +73,8 @@ app.post('/webhook/whatsapp', async (req, res) => {
         res.sendStatus(200);
     } catch (error) {
         console.error('❌ Error processing message:', error);
-        res.sendStatus(500);
+        // Return 200 to prevent WhatsApp from retrying (graceful degradation)
+        res.sendStatus(200);
     }
 });
 
@@ -271,7 +272,7 @@ app.get('/health', (req, res) => {
 // ============= ROOT ENDPOINT =============
 app.get('/', (req, res) => {
     res.json({
-        service: 'Bhai-Bot WhatsApp API',
+        service: 'Bhai-Bot WhatsApp Interface',
         version: '1.0.0',
         endpoints: {
             webhook: '/webhook/whatsapp',
@@ -281,15 +282,18 @@ app.get('/', (req, res) => {
 });
 
 // ============= START SERVER =============
-app.listen(PORT, () => {
-    console.log('🚀 Bhai-Bot WhatsApp server started!');
-    console.log(`📡 Listening on port ${PORT}`);
-    console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
-    console.log(`📞 Phone Number ID: ${PHONE_NUMBER_ID ? '✅ Configured' : '❌ Missing'}`);
-    console.log(`🔑 WhatsApp Token: ${WHATSAPP_TOKEN ? '✅ Configured' : '❌ Missing'}`);
-    console.log('\n💡 Configure webhook URL in Meta Dashboard:');
-    console.log(`   https://your-domain.com/webhook/whatsapp`);
-    console.log(`   Verify Token: ${VERIFY_TOKEN}\n`);
-});
+// Only start server if not being required as a module (for tests)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log('🚀 Bhai-Bot WhatsApp server started!');
+        console.log(`📡 Listening on port ${PORT}`);
+        console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
+        console.log(`📞 Phone Number ID: ${PHONE_NUMBER_ID ? '✅ Configured' : '❌ Missing'}`);
+        console.log(`🔑 WhatsApp Token: ${WHATSAPP_TOKEN ? '✅ Configured' : '❌ Missing'}`);
+        console.log('\n💡 Configure webhook URL in Meta Dashboard:');
+        console.log(`   https://your-domain.com/webhook/whatsapp`);
+        console.log(`   Verify Token: ${VERIFY_TOKEN}\n`);
+    });
+}
 
 module.exports = app;
