@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Redis for context enrichment caching
+  redis:
+    image: redis:7-alpine
+    container_name: millionx-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - millionx-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Privacy Shield Stream Processor
+  privacy-shield:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: millionx-privacy-shield
+    command: faust -A privacy_shield worker -l info
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=millionx-kafka:9092
+      - PRIVACY_SALT=${PRIVACY_SALT}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+    networks:
+      - millionx-network
+    ports:
+      - "6066:6066"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6066/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Context Enrichment Stream Processor
+  context-enricher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: millionx-context-enricher
+    command: faust -A context_enricher worker -l info
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=millionx-kafka:9092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - redis
+    networks:
+      - millionx-network
+    ports:
+      - "6067:6066"
+    restart: unless-stopped
+
+  # Embedding Service Stream Processor
+  embedding-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: millionx-embedding-service
+    command: faust -A embedding_service worker -l info
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=millionx-kafka:9092
+      - WEAVIATE_URL=http://millionx-weaviate:8080
+      - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      - EMBEDDING_BATCH_SIZE=100
+      - EMBEDDING_DEVICE=cpu
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - weaviate
+    networks:
+      - millionx-network
+    ports:
+      - "6068:6066"
+    restart: unless-stopped
+    # Increase memory limit for embedding model
+    mem_limit: 2g
+
+  # Schema Validation Stream Processor
+  schema-validator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: millionx-schema-validator
+    command: faust -A schema_validator worker -l info
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=millionx-kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+    networks:
+      - millionx-network
+    ports:
+      - "6069:6066"
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  millionx-network:
+    external: true  # Assumes you're using the network from docker-compose.kafka.yml
