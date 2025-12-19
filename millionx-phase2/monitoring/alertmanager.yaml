@@ -1,0 +1,149 @@
+# Alertmanager Configuration for MillionX Phase 2
+
+global:
+  # SMTP configuration for email notifications
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@millionx.com'
+  smtp_auth_username: 'alerts@millionx.com'
+  smtp_auth_password: 'your_app_password'  # Use app-specific password
+  smtp_require_tls: true
+  
+  # Slack webhook (optional)
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+# Route tree
+route:
+  # Default receiver
+  receiver: 'team-notifications'
+  
+  # Group alerts by severity and component
+  group_by: ['severity', 'component']
+  
+  # Wait before sending initial notification
+  group_wait: 30s
+  
+  # Wait before sending notification about new alerts in existing group
+  group_interval: 5m
+  
+  # Re-send notification if alert is still firing
+  repeat_interval: 4h
+  
+  # Child routes
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+      continue: true  # Also send to default receiver
+    
+    # Warning alerts - notify after some time
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 6h
+    
+    # Info alerts - low priority
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
+
+# Inhibition rules
+inhibit_rules:
+  # Inhibit warning if critical alert is firing for same component
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['component']
+  
+  # Inhibit info if warning or critical is firing
+  - source_match_re:
+      severity: 'critical|warning'
+    target_match:
+      severity: 'info'
+    equal: ['component']
+
+# Receivers
+receivers:
+  # Default team notifications
+  - name: 'team-notifications'
+    email_configs:
+      - to: 'team@millionx.com'
+        headers:
+          Subject: '[MillionX] {{ .GroupLabels.severity | toUpper }} - {{ .CommonAnnotations.summary }}'
+        html: |
+          <!DOCTYPE html>
+          <html>
+          <body>
+            <h2 style="color: {{ if eq .GroupLabels.severity "critical" }}red{{ else if eq .GroupLabels.severity "warning" }}orange{{ else }}blue{{ end }};">
+              {{ .GroupLabels.severity | toUpper }} Alert
+            </h2>
+            <p><strong>Component:</strong> {{ .GroupLabels.component }}</p>
+            <hr>
+            {{ range .Alerts }}
+            <div style="margin-bottom: 20px;">
+              <h3>{{ .Annotations.summary }}</h3>
+              <p>{{ .Annotations.description }}</p>
+              <p><strong>Runbook:</strong> <a href="{{ .Annotations.runbook_url }}">{{ .Annotations.runbook_url }}</a></p>
+              <p><strong>Labels:</strong> {{ .Labels }}</p>
+              <p><strong>Started:</strong> {{ .StartsAt }}</p>
+            </div>
+            {{ end }}
+          </body>
+          </html>
+  
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'oncall@millionx.com'
+        headers:
+          Subject: '🚨 [CRITICAL] {{ .CommonAnnotations.summary }}'
+        send_resolved: true
+    
+    slack_configs:
+      - channel: '#alerts-critical'
+        title: '🚨 Critical Alert: {{ .CommonAnnotations.summary }}'
+        text: |
+          *Component:* {{ .GroupLabels.component }}
+          *Description:* {{ .CommonAnnotations.description }}
+          *Runbook:* {{ .CommonAnnotations.runbook_url }}
+        color: 'danger'
+        send_resolved: true
+  
+  # Warning alerts
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'team@millionx.com'
+        headers:
+          Subject: '⚠️ [WARNING] {{ .CommonAnnotations.summary }}'
+        send_resolved: true
+    
+    slack_configs:
+      - channel: '#alerts-warning'
+        title: '⚠️ Warning: {{ .CommonAnnotations.summary }}'
+        text: |
+          *Component:* {{ .GroupLabels.component }}
+          *Description:* {{ .CommonAnnotations.description }}
+        color: 'warning'
+        send_resolved: true
+  
+  # Info alerts - Slack only
+  - name: 'info-alerts'
+    slack_configs:
+      - channel: '#alerts-info'
+        title: 'ℹ️ Info: {{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
+        color: 'good'
+        send_resolved: false
+
+# Templates for custom messages
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

@@ -1,0 +1,189 @@
+groups:
+  - name: millionx_phase2_critical
+    interval: 30s
+    rules:
+      
+      # Critical: Stream processor down
+      - alert: StreamProcessorDown
+        expr: up{job=~".*processor.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: stream-processing
+        annotations:
+          summary: "Stream processor {{ $labels.job }} is down"
+          description: "Processor {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute. This will cause data loss."
+          runbook_url: "https://docs.millionx.com/runbooks/processor-down"
+      
+      # Critical: High DLQ rate
+      - alert: HighDLQRate
+        expr: (rate(faust_processor_dlq_messages_total[5m]) / rate(faust_processor_messages_processed_total[5m])) * 100 > 2
+        for: 5m
+        labels:
+          severity: critical
+          component: stream-processing
+        annotations:
+          summary: "High DLQ rate for {{ $labels.processor }}"
+          description: "Processor {{ $labels.processor }} has {{ $value | humanizePercentage }} messages going to DLQ (threshold: 2%). Check logs for validation errors."
+          runbook_url: "https://docs.millionx.com/runbooks/high-dlq-rate"
+      
+      # Critical: Kafka consumer lag
+      - alert: HighKafkaConsumerLag
+        expr: kafka_consumergroup_lag > 10000
+        for: 5m
+        labels:
+          severity: critical
+          component: kafka
+        annotations:
+          summary: "High consumer lag on {{ $labels.topic }}"
+          description: "Consumer group {{ $labels.consumergroup }} is {{ $value }} messages behind on topic {{ $labels.topic }}. This may cause data freshness issues."
+          runbook_url: "https://docs.millionx.com/runbooks/consumer-lag"
+      
+      # Critical: Snowflake cost exceeds budget
+      - alert: SnowflakeDailyCostExceeded
+        expr: sum(increase(snowflake_credits_used_total[24h])) * 2.5 > 15
+        for: 1h
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "Snowflake daily cost exceeded $15"
+          description: "Snowflake has consumed {{ $value | humanize }} USD in the last 24 hours (budget: $15/day). Review warehouse usage."
+          runbook_url: "https://docs.millionx.com/runbooks/snowflake-cost"
+      
+      # Critical: Embedding service high latency
+      - alert: EmbeddingServiceHighLatency
+        expr: histogram_quantile(0.95, rate(faust_processor_processing_latency_seconds_bucket{processor="embedding-service"}[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: critical
+          component: stream-processing
+        annotations:
+          summary: "Embedding service P95 latency > 200ms"
+          description: "Embedding service has P95 latency of {{ $value | humanizeDuration }}. This will cause downstream delays."
+          runbook_url: "https://docs.millionx.com/runbooks/embedding-latency"
+
+  - name: millionx_phase2_warning
+    interval: 1m
+    rules:
+      
+      # Warning: Scraper success rate dropping
+      - alert: ScraperLowSuccessRate
+        expr: (sum(rate(scraper_requests_total{status="success"}[30m])) / sum(rate(scraper_requests_total[30m]))) * 100 < 80
+        for: 10m
+        labels:
+          severity: warning
+          component: scrapers
+        annotations:
+          summary: "Scraper success rate below 80%"
+          description: "Scraper success rate is {{ $value | humanizePercentage }} (threshold: 80%). Check for bot detection or API changes."
+          runbook_url: "https://docs.millionx.com/runbooks/scraper-failures"
+      
+      # Warning: Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: (rate(redis_cache_hits_total{service="context-enricher"}[10m]) / (rate(redis_cache_hits_total{service="context-enricher"}[10m]) + rate(redis_cache_misses_total{service="context-enricher"}[10m]))) * 100 < 70
+        for: 15m
+        labels:
+          severity: warning
+          component: caching
+        annotations:
+          summary: "Redis cache hit rate below 70%"
+          description: "Context enricher cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%). This increases API costs."
+          runbook_url: "https://docs.millionx.com/runbooks/cache-hit-rate"
+      
+      # Warning: Schema validation failures
+      - alert: HighSchemaValidationFailures
+        expr: (sum(rate(faust_processor_messages_processed_total{processor="schema-validator",valid="false"}[10m])) / sum(rate(faust_processor_messages_processed_total{processor="schema-validator"}[10m]))) * 100 > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: data-quality
+        annotations:
+          summary: "Schema validation failure rate > 5%"
+          description: "{{ $value | humanizePercentage }} of messages are failing schema validation. Review upstream data sources."
+          runbook_url: "https://docs.millionx.com/runbooks/schema-validation"
+      
+      # Warning: Embedding coverage dropping
+      - alert: LowEmbeddingCoverage
+        expr: (sum(rate(faust_processor_messages_processed_total{processor="embedding-service",has_embedding="true"}[10m])) / sum(rate(faust_processor_messages_processed_total{processor="embedding-service"}[10m]))) * 100 < 95
+        for: 10m
+        labels:
+          severity: warning
+          component: ml
+        annotations:
+          summary: "Embedding coverage below 95%"
+          description: "Only {{ $value | humanizePercentage }} of messages have embeddings (threshold: 95%). Check embedding service logs."
+          runbook_url: "https://docs.millionx.com/runbooks/embedding-coverage"
+      
+      # Warning: High PII detection rate
+      - alert: HighPIIDetectionRate
+        expr: (sum(rate(privacy_shield_pii_detected_total[10m])) / sum(rate(faust_processor_messages_processed_total{processor="privacy-shield"}[10m]))) * 100 > 30
+        for: 15m
+        labels:
+          severity: warning
+          component: privacy
+        annotations:
+          summary: "High PII detection rate > 30%"
+          description: "{{ $value | humanizePercentage }} of messages contain PII. Verify data sources are not exposing sensitive information."
+          runbook_url: "https://docs.millionx.com/runbooks/pii-detection"
+      
+      # Warning: Weaviate ingestion slow
+      - alert: WeaviateSlowIngestion
+        expr: rate(weaviate_objects_total[10m]) < 10
+        for: 10m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "Weaviate ingestion rate below 10 obj/sec"
+          description: "Weaviate is ingesting only {{ $value | humanize }} objects/sec. Check for bottlenecks."
+          runbook_url: "https://docs.millionx.com/runbooks/weaviate-ingestion"
+      
+      # Warning: Data freshness lag
+      - alert: HighIngestionLag
+        expr: histogram_quantile(0.95, rate(ingestion_lag_seconds_bucket[10m])) > 60
+        for: 10m
+        labels:
+          severity: warning
+          component: data-quality
+        annotations:
+          summary: "P95 ingestion lag > 60 seconds"
+          description: "Data is taking {{ $value | humanizeDuration }} to be ingested (P95). Check pipeline throughput."
+          runbook_url: "https://docs.millionx.com/runbooks/ingestion-lag"
+
+  - name: millionx_phase2_info
+    interval: 5m
+    rules:
+      
+      # Info: Weather API failures
+      - alert: WeatherAPIFailures
+        expr: rate(weather_fetcher_errors_total[1h]) > 0
+        for: 30m
+        labels:
+          severity: info
+          component: external-api
+        annotations:
+          summary: "Weather API experiencing failures"
+          description: "Weather fetcher has {{ $value | humanize }} errors/sec. Context enrichment may have stale weather data."
+      
+      # Info: Snowflake warehouse auto-suspend
+      - alert: SnowflakeWarehouseIdle
+        expr: snowflake_warehouse_active == 0
+        for: 10m
+        labels:
+          severity: info
+          component: storage
+        annotations:
+          summary: "Snowflake warehouse is idle"
+          description: "Warehouse {{ $labels.warehouse }} has been idle for 10 minutes and may auto-suspend."
+      
+      # Info: Disk space warning
+      - alert: DiskSpaceWarning
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 15m
+        labels:
+          severity: info
+          component: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk space on {{ $labels.instance }} is {{ $value | humanizePercentage }} available. Consider cleanup."

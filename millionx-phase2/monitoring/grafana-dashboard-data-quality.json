@@ -1,0 +1,292 @@
+{
+  "dashboard": {
+    "title": "MillionX Phase 2 - Data Quality",
+    "tags": ["millionx", "phase2", "data-quality"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 0,
+    "refresh": "1m",
+    
+    "panels": [
+      {
+        "id": 1,
+        "title": "Schema Validation Success Rate",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(faust_processor_messages_processed_total{processor=\"schema-validator\",valid=\"true\"}[5m])) / sum(rate(faust_processor_messages_processed_total{processor=\"schema-validator\"}[5m])) * 100",
+            "legendFormat": "Valid %"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 2,
+        "title": "PII Detection Rate",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(privacy_shield_pii_detected_total[5m])) / sum(rate(faust_processor_messages_processed_total{processor=\"privacy-shield\"}[5m])) * 100",
+            "legendFormat": "PII Detected %"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 30, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 3,
+        "title": "Embedding Coverage",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(faust_processor_messages_processed_total{processor=\"embedding-service\",has_embedding=\"true\"}[5m])) / sum(rate(faust_processor_messages_processed_total{processor=\"embedding-service\"}[5m])) * 100",
+            "legendFormat": "Coverage %"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 98, "color": "yellow"},
+                {"value": 99.5, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 4,
+        "title": "Product Category Detection",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "sum by (category) (rate(context_enricher_category_detected_total[5m]))",
+            "legendFormat": "{{category}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "pie",
+          "tooltip": {
+            "mode": "single"
+          }
+        }
+      },
+      
+      {
+        "id": 5,
+        "title": "Validation Errors by Field",
+        "type": "graph",
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(schema_validator_field_errors_total[5m])",
+            "legendFormat": "{{field}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Errors/sec"},
+          {"format": "short", "show": false}
+        ],
+        "stack": true
+      },
+      
+      {
+        "id": 6,
+        "title": "Top 10 Anonymized Fields",
+        "type": "bargauge",
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "topk(10, sum by (field_name) (rate(privacy_shield_field_anonymized_total[5m])))",
+            "legendFormat": "{{field_name}}"
+          }
+        ],
+        "options": {
+          "displayMode": "gradient",
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        }
+      },
+      
+      {
+        "id": 7,
+        "title": "Enrichment Coverage by Type",
+        "type": "table",
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 18},
+        "targets": [
+          {
+            "expr": "sum by (enrichment_type) (rate(context_enricher_enrichments_applied_total[5m]))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "renameByName": {
+                "enrichment_type": "Type",
+                "Value": "Rate (ops/sec)"
+              }
+            }
+          }
+        ]
+      },
+      
+      {
+        "id": 8,
+        "title": "Embedding Model Performance",
+        "type": "graph",
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 18},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(embedding_service_batch_processing_seconds_bucket[5m]))",
+            "legendFormat": "P95 Batch Time"
+          },
+          {
+            "expr": "rate(embedding_service_embeddings_generated_total[5m])",
+            "legendFormat": "Embeddings/sec",
+            "yAxisIndex": 1
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "ops", "label": "Throughput"}
+        ]
+      },
+      
+      {
+        "id": 9,
+        "title": "Data Quality Score (Composite)",
+        "type": "gauge",
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "(sum(rate(faust_processor_messages_processed_total{processor=\"schema-validator\",valid=\"true\"}[5m])) / sum(rate(faust_processor_messages_processed_total{processor=\"schema-validator\"}[5m])) * 0.4 + sum(rate(faust_processor_messages_processed_total{processor=\"embedding-service\",has_embedding=\"true\"}[5m])) / sum(rate(faust_processor_messages_processed_total{processor=\"embedding-service\"}[5m])) * 0.3 + (1 - sum(rate(faust_processor_dlq_messages_total[5m])) / sum(rate(faust_processor_messages_processed_total[5m]))) * 0.3) * 100",
+            "legendFormat": "Quality Score"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      
+      {
+        "id": 10,
+        "title": "Data Freshness (Ingestion Lag)",
+        "type": "graph",
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 28},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(ingestion_lag_seconds_bucket[5m]))",
+            "legendFormat": "P95 Lag"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(ingestion_lag_seconds_bucket[5m]))",
+            "legendFormat": "P99 Lag"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Lag"},
+          {"format": "short", "show": false}
+        ],
+        "thresholds": [
+          {"value": 60, "colorMode": "critical", "op": "gt", "fill": false, "line": true}
+        ]
+      }
+    ],
+    
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "text": "Prometheus",
+            "value": "Prometheus"
+          }
+        }
+      ]
+    },
+    
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  },
+  
+  "overwrite": true
+}

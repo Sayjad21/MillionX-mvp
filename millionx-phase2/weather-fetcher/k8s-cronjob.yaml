@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weather-fetcher
+  namespace: millionx
+spec:
+  # Run every hour at minute 0
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid  # Don't run concurrent jobs
+  
+  jobTemplate:
+    spec:
+      backoffLimit: 2  # Retry failed jobs twice
+      activeDeadlineSeconds: 300  # 5 minute timeout
+      
+      template:
+        metadata:
+          labels:
+            app: weather-fetcher
+            component: data-collection
+        
+        spec:
+          restartPolicy: OnFailure
+          
+          containers:
+          - name: weather-fetcher
+            image: millionx/weather-fetcher:latest
+            imagePullPolicy: Always
+            
+            env:
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: weather-fetcher-secrets
+                  key: openweather-api-key
+            
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka:9092"
+            
+            - name: KAFKA_WEATHER_TOPIC
+              value: "context.weather"
+            
+            - name: MAX_RETRIES
+              value: "3"
+            
+            - name: RETRY_DELAY_SECONDS
+              value: "5"
+            
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "200m"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: weather-fetcher-secrets
+  namespace: millionx
+type: Opaque
+stringData:
+  openweather-api-key: "your_api_key_here"  # Replace with actual key

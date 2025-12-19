@@ -1,0 +1,39 @@
+{
+  "name": "snowflake-sink-social",
+  "config": {
+    "connector.class": "com.snowflake.kafka.connector.SnowflakeSinkConnector",
+    "tasks.max": "4",
+    
+    "topics": "sink.snowflake.social",
+    
+    "snowflake.url.name": "${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com",
+    "snowflake.user.name": "${SNOWFLAKE_USER}",
+    "snowflake.private.key": "${SNOWFLAKE_PRIVATE_KEY}",
+    "snowflake.database.name": "MILLIONX",
+    "snowflake.schema.name": "RAW_DATA",
+    
+    "buffer.count.records": "10000",
+    "buffer.flush.time": "60",
+    "buffer.size.bytes": "10485760",
+    
+    "snowflake.ingestion.method": "SNOWPIPE_STREAMING",
+    
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+    "errors.deadletterqueue.topic.name": "snowflake-connector-dlq",
+    "errors.deadletterqueue.context.headers.enable": "true",
+    
+    "snowflake.topic2table.map": "sink.snowflake.social:SOCIAL_POSTS",
+    
+    "snowflake.metadata.createtime": "true",
+    "snowflake.metadata.topic": "true",
+    "snowflake.metadata.offset.and.partition": "true",
+    
+    "name": "snowflake-sink-social"
+  }
+}
