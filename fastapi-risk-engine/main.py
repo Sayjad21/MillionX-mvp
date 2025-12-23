@@ -6,14 +6,27 @@ import os
 from dotenv import load_dotenv
 import time
 from datetime import datetime
+import sys
 
 # Load environment variables
 load_dotenv()
 
+# Ensure we can import from ai-core (mapped via Docker volume)
+sys.path.append('/ai-core')
+
+try:
+    from agent_workflow import InventoryCopilot
+    copilot = InventoryCopilot()
+    ai_available = True
+    print("✅ AI Core loaded successfully")
+except ImportError as e:
+    print(f"⚠️ AI Core not found: {e}")
+    ai_available = False
+
 app = FastAPI(
-    title="COD Shield API",
-    description="Real-time fraud detection for Cash-on-Delivery orders",
-    version="1.0.0"
+    title="MillionX API",
+    description="COD Shield + Inventory Copilot AI",
+    version="2.0.0"
 )
 
 # Initialize Redis connection
@@ -262,6 +275,33 @@ async def add_to_blacklist(request: BlacklistRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blacklist update failed: {str(e)}")
+
+@app.get("/api/v1/inventory/forecast")
+async def get_forecast(product_id: str = None, limit: int = 5):
+    """
+    Get AI-powered inventory forecast and recommendations
+    
+    - **product_id**: Specific product ID (optional, e.g., PROD-130)
+    - **limit**: Number of products to forecast in batch mode (default: 5)
+    """
+    if not ai_available:
+        return {"error": "AI Core not connected", "recommendation": "Please check ai-core module"}
+    
+    try:
+        if product_id:
+            # Single product forecast
+            result = copilot.process(product_id=product_id)
+            return result
+        else:
+            # Batch forecast for top products
+            results = copilot.process_batch(limit=limit)
+            return {
+                "count": len(results),
+                "products": results,
+                "timestamp": datetime.now().isoformat()
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Forecast failed: {str(e)}")
 
 @app.get("/api/v1/blacklist/check")
 async def check_blacklist_status(phone: str):
