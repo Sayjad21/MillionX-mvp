@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, X, MessageSquare } from "lucide-react";
+import { Zap, X, MessageSquare, LayoutDashboard, Sparkles } from "lucide-react";
 
-const Navbar = () => {
+const Navbar = ({ currentScreen, onNavigate }) => {
   const [showQRModal, setShowQRModal] = useState(false);
 
   return (
@@ -26,14 +26,38 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-4">
+            {/* Navigation Menu */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => onNavigate?.("dashboard")}
+                className={`px-4 py-2 rounded-lg transition-all flex items-center space-x-2 ${
+                  currentScreen === "dashboard"
+                    ? "bg-neon-green text-cyber-night font-bold"
+                    : "text-gray-300 hover:text-neon-green hover:bg-neon-green/10"
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => onNavigate?.("haggling")}
+                className={`px-4 py-2 rounded-lg transition-all flex items-center space-x-2 ${
+                  currentScreen === "haggling"
+                    ? "bg-neon-green text-cyber-night font-bold"
+                    : "text-gray-300 hover:text-neon-green hover:bg-neon-green/10"
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Haggling Arena</span>
+              </button>
+
               <button
                 onClick={() => setShowQRModal(true)}
-                className="neon-button flex items-center space-x-2"
+                className="glass-card px-4 py-2 border border-jamdani-teal/50 hover:border-neon-green transition-all flex items-center space-x-2"
               >
-                <MessageSquare className="w-5 h-5" />
-                <span>Connect WhatsApp</span>
+                <MessageSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
               </button>
             </div>
           </div>
