@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { QrCode, Zap, ArrowRight, Smartphone, Store } from 'lucide-react';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { QrCode, Zap, ArrowRight, Smartphone, Store } from "lucide-react";
 
 const Onboarding = ({ onComplete }) => {
   const [step, setStep] = useState(0);
@@ -14,7 +14,10 @@ const Onboarding = ({ onComplete }) => {
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-green/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-jamdani-teal/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-jamdani-teal/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
       </div>
 
       {/* Main Content */}
@@ -29,7 +32,7 @@ const Onboarding = ({ onComplete }) => {
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ type: 'spring', bounce: 0.5 }}
+            transition={{ type: "spring", bounce: 0.5 }}
             className="inline-block mb-6"
           >
             <div className="relative">
@@ -105,7 +108,9 @@ const Onboarding = ({ onComplete }) => {
                 </div>
                 <div>
                   <h3 className="font-bold text-white mb-1">Scan QR Code</h3>
-                  <p className="text-sm text-gray-400">Link your business account</p>
+                  <p className="text-sm text-gray-400">
+                    Link your business account
+                  </p>
                 </div>
               </div>
 
@@ -115,7 +120,9 @@ const Onboarding = ({ onComplete }) => {
                 </div>
                 <div>
                   <h3 className="font-bold text-white mb-1">Start Chatting</h3>
-                  <p className="text-sm text-gray-400">Get AI insights instantly</p>
+                  <p className="text-sm text-gray-400">
+                    Get AI insights instantly
+                  </p>
                 </div>
               </div>
             </div>
@@ -123,7 +130,9 @@ const Onboarding = ({ onComplete }) => {
 
           {/* Quick Commands Preview */}
           <div className="mt-8 pt-8 border-t border-neon-green/20">
-            <h3 className="text-sm font-bold text-neon-green mb-3">Quick Commands:</h3>
+            <h3 className="text-sm font-bold text-neon-green mb-3">
+              Quick Commands:
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
               <div className="glass-card p-2 text-center">
                 <span className="text-gray-300">"forecast"</span>
@@ -173,13 +182,17 @@ const Onboarding = ({ onComplete }) => {
         >
           <div className="glass-card p-4 text-center">
             <Smartphone className="w-8 h-8 text-neon-green mx-auto mb-2" />
-            <h4 className="font-bold text-white text-sm mb-1">Voice-First AI</h4>
+            <h4 className="font-bold text-white text-sm mb-1">
+              Voice-First AI
+            </h4>
             <p className="text-xs text-gray-400">Chat in Bangla/English</p>
           </div>
 
           <div className="glass-card p-4 text-center">
             <Store className="w-8 h-8 text-jamdani-teal mx-auto mb-2" />
-            <h4 className="font-bold text-white text-sm mb-1">Smart Forecasting</h4>
+            <h4 className="font-bold text-white text-sm mb-1">
+              Smart Forecasting
+            </h4>
             <p className="text-xs text-gray-400">Predict stockouts</p>
           </div>
 
