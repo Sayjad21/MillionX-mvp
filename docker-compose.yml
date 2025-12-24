@@ -19,6 +19,74 @@ services:
       - millionx-network
     restart: unless-stopped
 
+  # PostgreSQL Database (Replaces SQLite)
+  postgres:
+    image: postgres:15-alpine
+    container_name: millionx-postgres
+    environment:
+      POSTGRES_USER: millionx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-millionx_secure_2025}
+      POSTGRES_DB: millionx
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./ai-core/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U millionx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - millionx-network
+    restart: unless-stopped
+
+  # TimescaleDB (Snowflake Alternative)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: millionx-timescale
+    environment:
+      POSTGRES_USER: millionx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-millionx_secure_2025}
+      POSTGRES_DB: millionx_analytics
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./millionx-phase2/timescale/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U millionx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - millionx-network
+    restart: unless-stopped
+
+  # Weaviate Vector Database
+  weaviate:
+    image: semitechnologies/weaviate:1.23.0
+    container_name: millionx-weaviate
+    ports:
+      - "8082:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      CLUSTER_HOSTNAME: 'node1'
+      ENABLE_MODULES: ''
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - millionx-network
+    restart: unless-stopped
+
   # FastAPI Risk Engine
   fastapi:
     build:
@@ -36,9 +104,11 @@ services:
       - REDIS_PORT=6379
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
-      - DATABASE_URL=sqlite:////ai-core/millionx_ai.db
+      - DATABASE_URL=postgresql://millionx:${POSTGRES_PASSWORD:-millionx_secure_2025}@postgres:5432/millionx
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test:
@@ -94,8 +164,29 @@ services:
       - millionx-network
     restart: unless-stopped
 
+  # Weather Fetcher Service
+  weather-fetcher:
+    build:
+      context: ./millionx-phase2/weather-fetcher
+      dockerfile: Dockerfile
+    container_name: millionx-weather-fetcher
+    environment:
+      - OPENWEATHER_API_KEY=311a89f0d16a6fb92eeae4b0ecae5476
+      - KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+    networks:
+      - millionx-network
+    restart: "no"
+    profiles:
+      - weather
+
 volumes:
   redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  timescale_data:
+    driver: local
+  weaviate_data:
     driver: local
 
 networks:

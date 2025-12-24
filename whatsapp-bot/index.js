@@ -126,31 +126,60 @@ async function routeTextMessage(text, from) {
 async function handleProfitQuery(merchantPhone) {
   console.log(`💰 Handling profit query for ${merchantPhone}`);
 
-  // TODO: Query Supabase for actual data
-  // For MVP, return mock data
-  return (
-    `📊 *December Profit Summary*\n\n` +
-    `💰 Revenue: Tk 45,300\n` +
-    `💸 Costs: Tk 32,100\n` +
-    `✅ *Net Profit: Tk 13,200* (+18% vs Nov)\n\n` +
-    `🔥 Top seller: Blue T-shirt (45 units)\n` +
-    `📦 Total orders: 127`
-  );
+  try {
+    // Call FastAPI for real profit data
+    const response = await axios.get(
+      `${FASTAPI_URL}/api/v1/merchant/profit?merchant_id=${merchantPhone}`
+    );
+    const data = response.data;
+
+    return (
+      `📊 *${data.period} Profit Summary*\n\n` +
+      `💰 Revenue: Tk ${data.revenue.toLocaleString()}\n` +
+      `💸 Costs: Tk ${data.estimated_costs.toLocaleString()}\n` +
+      `✅ *Net Profit: Tk ${data.net_profit.toLocaleString()}* (${data.trend_vs_previous} vs prev)\n\n` +
+      `🔥 Top seller: ${data.top_seller.product} (${data.top_seller.units_sold} units)\n` +
+      `📦 Total orders: ${data.total_orders}\n` +
+      `📈 Margin: ${data.profit_margin_pct}%`
+    );
+  } catch (error) {
+    console.error("❌ Profit query failed:", error.message);
+    return "❌ Could not fetch profit data. Please try again later.";
+  }
 }
 
 async function handleInventoryQuery(merchantPhone) {
   console.log(`📦 Handling inventory query for ${merchantPhone}`);
 
-  // TODO: Query actual inventory from database
-  // For MVP, return mock data
-  return (
-    `📦 *Inventory Alert*\n\n` +
-    `⚠️ *Low Stock Items:*\n` +
-    `• Blue T-shirt - 8 left\n` +
-    `• Red Hoodie - 5 left\n` +
-    `• Black Cap - 3 left\n\n` +
-    `💡 Tip: Restock Blue T-shirt soon (trending!)`
-  );
+  try {
+    // Call FastAPI for real inventory data
+    const response = await axios.get(
+      `${FASTAPI_URL}/api/v1/merchant/inventory?merchant_id=${merchantPhone}&threshold=10`
+    );
+    const data = response.data;
+
+    let reply = `📦 *Inventory Status*\n\n`;
+
+    if (data.low_stock_count > 0) {
+      reply += `⚠️ *${data.low_stock_count} Low Stock Items:*\n`;
+      data.low_stock_alerts.forEach((alert, i) => {
+        reply += `• ${alert.product_name} - ${alert.estimated_stock} left\n`;
+      });
+    } else {
+      reply += `✅ All stock levels healthy!\n`;
+    }
+
+    reply += `\n💡 Tip: ${data.tip}`;
+    
+    if (data.trending_products && data.trending_products.length > 0) {
+      reply += `\n\n🔥 Trending: ${data.trending_products.join(", ")}`;
+    }
+
+    return reply;
+  } catch (error) {
+    console.error("❌ Inventory query failed:", error.message);
+    return "❌ Could not fetch inventory data. Please try again later.";
+  }
 }
 
 async function handleForecastQuery(text) {

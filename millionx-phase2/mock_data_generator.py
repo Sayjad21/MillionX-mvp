@@ -27,8 +27,8 @@ load_dotenv('.env')
 
 # Configuration
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-NUM_SOCIAL_POSTS = 100
-NUM_ORDERS = 150
+NUM_SOCIAL_POSTS = 300
+NUM_ORDERS = 500
 
 print("=" * 80)
 print("🎭 MOCK DATA GENERATOR FOR MILLIONX PHASE 2")
@@ -101,6 +101,96 @@ LAST_NAMES = ['Rahman', 'Ahmed', 'Khan', 'Hossain', 'Islam', 'Akter', 'Begum', '
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
+def get_seasonal_multiplier(date: datetime, product_category: str) -> float:
+    """
+    Apply seasonal demand multipliers based on Bangladesh context
+    
+    Patterns:
+    - Eid season (varies, typically July-August): Fashion +150%, Electronics +80%
+    - Monsoon (June-September): Rainwear +200%, Home +50%
+    - Winter (December-January): Fashion (winter wear) +100%
+    - Pohela Boishakh (April 14): Fashion +120%
+    - Weekend: All categories +30%
+    """
+    month = date.month
+    day = date.day
+    day_of_week = date.weekday()
+    
+    multiplier = 1.0
+    
+    # Eid season (July-August) - Major shopping period
+    if month in [7, 8]:
+        if product_category == 'fashion':
+            multiplier *= 2.5
+        elif product_category in ['smartphone', 'electronics', 'laptop']:
+            multiplier *= 1.8
+        elif product_category in ['home', 'tablets']:
+            multiplier *= 1.5
+    
+    # Pohela Boishakh (Bengali New Year - April 14)
+    if month == 4 and day == 14:
+        if product_category == 'fashion':
+            multiplier *= 2.2
+        else:
+            multiplier *= 1.3
+    
+    # Monsoon season (June-September) - Specific product boost
+    if month in [6, 7, 8, 9]:
+        if product_category == 'fashion':  # Assume includes rainwear
+            multiplier *= 2.0
+        elif product_category == 'home':  # Indoor activities
+            multiplier *= 1.5
+        elif product_category == 'electronics':
+            multiplier *= 1.3
+    
+    # Winter (December-January) - Fashion and electronics boost
+    if month in [12, 1]:
+        if product_category == 'fashion':  # Winter clothing
+            multiplier *= 2.0
+        elif product_category in ['home', 'electronics']:
+            multiplier *= 1.4
+    
+    # Weekend boost (Friday-Saturday in Bangladesh context)
+    if day_of_week >= 4:  # Friday, Saturday
+        multiplier *= 1.3
+    
+    # Black Friday / Cyber Monday (late November)
+    if month == 11 and 20 <= day <= 30:
+        multiplier *= 2.0  # Huge sales period
+    
+    return multiplier
+
+def get_regional_preference_multiplier(region: str, product_category: str) -> float:
+    """
+    Apply regional preference multipliers
+    
+    Regional patterns:
+    - Dhaka: Higher tech adoption, electronics +50%
+    - Chittagong: Port city, diverse products, all +30%
+    - Sylhet: Fashion-conscious, fashion +40%
+    """
+    multiplier = 1.0
+    
+    if region == 'Dhaka':
+        # Capital city, tech hub
+        if product_category in ['smartphone', 'laptop', 'electronics', 'gaming', 'wearables']:
+            multiplier *= 1.5
+        elif product_category == 'fashion':
+            multiplier *= 1.3
+    
+    elif region == 'Chittagong':
+        # Second largest city, port city
+        multiplier *= 1.3  # General commerce boost
+    
+    elif region == 'Sylhet':
+        # Known for fashion and remittance economy
+        if product_category == 'fashion':
+            multiplier *= 1.4
+        elif product_category in ['smartphone', 'electronics']:
+            multiplier *= 1.2
+    
+    return multiplier
 
 def generate_phone():
     """Generate fake Bangladesh phone number"""
@@ -185,9 +275,31 @@ def generate_social_post():
     return post
 
 def generate_market_order():
-    """Generate realistic e-commerce order"""
+    """Generate realistic e-commerce order with seasonality and regional patterns"""
     category, product, price = get_random_product()
-    quantity = random.randint(1, 5)
+    
+    # Generate random date for order (to apply seasonality)
+    days_ago = random.randint(0, 90)  # Last 90 days
+    order_date = datetime.now(timezone.utc) - timedelta(
+        days=days_ago,
+        hours=random.randint(0, 23),
+        minutes=random.randint(0, 59)
+    )
+    
+    # Base quantity
+    base_quantity = random.randint(1, 5)
+    
+    # Apply seasonal multiplier
+    seasonal_mult = get_seasonal_multiplier(order_date, category)
+    
+    # Select region and apply regional preference
+    region = random.choice(BANGLADESH_CITIES)
+    regional_mult = get_regional_preference_multiplier(region, category)
+    
+    # Calculate final quantity (with some randomness to avoid perfect patterns)
+    quantity = int(base_quantity * seasonal_mult * regional_mult * random.uniform(0.8, 1.2))
+    quantity = max(1, quantity)  # At least 1 item
+    
     total_price = price * quantity
     
     first_name = random.choice(FIRST_NAMES)
@@ -197,7 +309,7 @@ def generate_market_order():
     customer_email = generate_email(customer_name)
     
     order = {
-        "order_id": f"ORD-{random.randint(10000, 99999)}",
+        "order_id": f"ORD-{order_date.strftime('%Y%m%d')}-{random.randint(1000, 9999)}",
         "platform": random.choice(['shopify', 'daraz']),
         "customer_id": f"CUST-{random.randint(1000, 9999)}",
         "customer_phone": customer_phone,  # Will be hashed by Privacy Shield
@@ -212,9 +324,15 @@ def generate_market_order():
         "currency": "BDT",
         "order_status": random.choice(['confirmed', 'pending', 'shipped', 'delivered']),
         "payment_method": random.choice(['COD', 'bKash', 'Nagad', 'Card']),
-        "shipping_region": random.choice(BANGLADESH_CITIES),
-        "shipping_city": random.choice(BANGLADESH_CITIES),
-        "timestamp": random_date(days_ago=30)
+        "shipping_region": region,
+        "shipping_city": region,
+        "timestamp": order_date.isoformat() + 'Z',
+        # Add metadata for analysis
+        "metadata": {
+            "seasonal_multiplier": round(seasonal_mult, 2),
+            "regional_multiplier": round(regional_mult, 2),
+            "is_weekend": order_date.weekday() >= 4
+        }
     }
     
     return order

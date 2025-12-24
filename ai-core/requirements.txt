@@ -7,6 +7,9 @@ numpy>=1.24.0,<2.0.0
 
 # Machine Learning
 scikit-learn>=1.3.0,<2.0.0
+statsforecast>=1.5.0  # For AutoARIMA, AutoETS
+vaderSentiment>=3.3.2  # Sentiment analysis
+networkx>=3.0  # Graph analytics
 
 # Database
 sqlalchemy>=2.0.23,<3.0.0
