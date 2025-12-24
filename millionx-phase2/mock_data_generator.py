@@ -28,7 +28,7 @@ load_dotenv('.env')
 # Configuration
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
 NUM_SOCIAL_POSTS = 100
-NUM_ORDERS = 50
+NUM_ORDERS = 150
 
 print("=" * 80)
 print("🎭 MOCK DATA GENERATOR FOR MILLIONX PHASE 2")
@@ -47,19 +47,33 @@ print()
 PRODUCT_CATEGORIES = {
     'smartphone': [
         'iPhone 15 Pro Max', 'Samsung Galaxy S24', 'Xiaomi Redmi Note 13',
-        'OnePlus 12', 'Google Pixel 8', 'Vivo V30', 'Oppo Reno 11'
+        'OnePlus 12', 'Google Pixel 8', 'Vivo V30', 'Oppo Reno 11',
+        'Realme 11 Pro', 'Nothing Phone 2', 'Honor Magic 6'
     ],
     'laptop': [
         'MacBook Pro M3', 'Dell XPS 15', 'HP Pavilion', 'Lenovo ThinkPad',
-        'Asus ROG', 'Acer Aspire', 'MSI Gaming Laptop'
+        'Asus ROG', 'Acer Aspire', 'MSI Gaming Laptop',
+        'Surface Laptop 5', 'Razer Blade 15', 'LG Gram'
+    ],
+    'wearables': [
+        'Apple Watch Series 9', 'Samsung Galaxy Watch 6', 'Fitbit Charge 6',
+        'Garmin Forerunner 955', 'Amazfit GTR 4', 'Xiaomi Mi Band 8'
+    ],
+    'tablets': [
+        'iPad Pro M2', 'Samsung Galaxy Tab S9', 'Microsoft Surface Pro 9',
+        'Lenovo Tab P12', 'Xiaomi Pad 6', 'Amazon Fire HD 10'
+    ],
+    'gaming': [
+        'PlayStation 5', 'Xbox Series X', 'Nintendo Switch OLED',
+        'Steam Deck', 'Meta Quest 3', 'Asus ROG Ally'
     ],
     'fashion': [
         'Nike Air Max', 'Adidas Ultraboost', 'Zara Dress', 'H&M Jacket',
-        'Levis Jeans', 'Puma Sneakers', 'Gucci Bag'
+        'Levis Jeans', 'Puma Sneakers', 'Gucci Bag', 'Ray-Ban Sunglasses'
     ],
     'electronics': [
-        'Sony WH-1000XM5', 'AirPods Pro', 'Samsung TV 55"', 'PS5 Console',
-        'Nintendo Switch', 'Canon EOS R6', 'DJI Drone'
+        'Sony WH-1000XM5', 'AirPods Pro', 'Samsung TV 55"', 'Canon EOS R6', 
+        'DJI Drone', 'Bose SoundLink', 'JBL Flip 6'
     ],
     'home': [
         'Philips Air Fryer', 'Dyson Vacuum', 'Samsung Refrigerator',

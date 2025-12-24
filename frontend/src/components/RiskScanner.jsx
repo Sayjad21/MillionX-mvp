@@ -7,14 +7,20 @@ import {
   Loader2,
   Phone,
   MapPin,
+  AlertOctagon,
 } from "lucide-react";
 import { checkRiskScore } from "../api";
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:8000/api/v1";
 
 const RiskScanner = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [reportingFraud, setReportingFraud] = useState(false);
+  const [fraudReported, setFraudReported] = useState(false);
 
   const handleScan = async (e) => {
     e.preventDefault();
@@ -22,17 +28,26 @@ const RiskScanner = () => {
 
     setLoading(true);
     setResult(null);
+    setFraudReported(false);
 
     try {
-      // Create mock order data with the phone number
+      // Create properly structured order data matching API schema
       const orderData = {
         order_id: `ORD-${Date.now()}`,
+        merchant_id: "DEMO-MERCHANT-001",
         customer_phone: phoneNumber,
-        customer_name: "Customer",
-        amount: 2500,
-        delivery_address: "Dhaka, Bangladesh",
-        payment_method: "COD",
-        order_date: new Date().toISOString(),
+        delivery_address: {
+          area: "Mohammadpur",
+          city: "Dhaka",
+          postal_code: "1207",
+        },
+        order_details: {
+          total_amount: 2500,
+          currency: "BDT",
+          items_count: 2,
+          is_first_order: Math.random() > 0.5, // Random for demo
+        },
+        timestamp: new Date().toISOString(),
       };
 
       const data = await checkRiskScore(orderData);
@@ -47,6 +62,32 @@ const RiskScanner = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReportFraud = async () => {
+    if (!phoneNumber.trim()) return;
+
+    setReportingFraud(true);
+
+    try {
+      await axios.post(`${API_BASE_URL}/blacklist/add`, {
+        phone: phoneNumber,
+        reason: "Reported by Merchant - COD Shield",
+        merchant_id: "DEMO-USER",
+      });
+
+      setFraudReported(true);
+
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        setFraudReported(false);
+      }, 3000);
+    } catch (err) {
+      console.error("Failed to report fraud:", err);
+      alert("Failed to add to blacklist. Please try again.");
+    } finally {
+      setReportingFraud(false);
     }
   };
 
@@ -235,11 +276,55 @@ const RiskScanner = () => {
                 </div>
               )}
 
+              {/* Report Fraud Button */}
+              {!fraudReported ? (
+                <button
+                  onClick={handleReportFraud}
+                  disabled={reportingFraud}
+                  className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-bold transition-all border-2 ${
+                    reportingFraud
+                      ? "bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed"
+                      : "bg-rickshaw-orange/10 border-rickshaw-orange text-rickshaw-orange hover:bg-rickshaw-orange hover:text-black shadow-orange-glow"
+                  }`}
+                >
+                  {reportingFraud ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Reporting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertOctagon className="w-5 h-5" />
+                      <span>🚫 Report as Fraud</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="glass-card p-4 bg-rickshaw-orange/20 border-2 border-rickshaw-orange"
+                >
+                  <div className="flex items-center space-x-2">
+                    <AlertOctagon className="w-5 h-5 text-rickshaw-orange" />
+                    <div>
+                      <p className="text-sm font-bold text-rickshaw-orange">
+                        🚫 Number Added to National Blacklist
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        This phone number is now flagged across all merchants
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Actions */}
               <button
                 onClick={() => {
                   setResult(null);
                   setPhoneNumber("");
+                  setFraudReported(false);
                 }}
                 className="w-full text-sm text-gray-400 hover:text-neon-green transition-colors"
               >

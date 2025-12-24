@@ -1,67 +1,134 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Send, X, Sparkles, MessageCircle } from "lucide-react";
+import { Mic, Send, X, Sparkles, MessageCircle, Activity } from "lucide-react";
 
 const BhaiBotWidget = ({ onQuery }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [chatHistory, setChatHistory] = useState([
     {
       type: "bot",
-      text: 'Assalamu Alaikum! I\'m your AI Assistant. Type "forecast" to filter products, or ask me anything!',
+      text: '🤖 Assalamu Alaikum! I am Bhai-Bot. Say "Show urgent stock" or type "forecast"!',
     },
   ]);
+  const messagesEndRef = useRef(null);
+
+  // Web Speech API Setup
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+  useEffect(() => {
+    if (recognition) {
+      recognition.continuous = false;
+      recognition.lang = "en-US"; // Change to 'bn-BD' for Bangla
+      recognition.interimResults = false;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        handleCommand(transcript);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech error:", event.error);
+        setIsListening(false);
+        setChatHistory((prev) => [
+          ...prev,
+          {
+            type: "bot",
+            text: "⚠️ Voice not detected. Try again or type your command.",
+          },
+        ]);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListen = () => {
+    if (!recognition) {
+      setChatHistory((prev) => [
+        ...prev,
+        { type: "bot", text: "❌ Voice not supported. Try Chrome!" },
+      ]);
+      return;
+    }
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      recognition.start();
+      setIsListening(true);
+      setChatHistory((prev) => [
+        ...prev,
+        { type: "bot", text: "🎙️ Listening... Speak now!" },
+      ]);
+    }
+  };
+
+  const handleCommand = (text) => {
+    const lowerText = text.toLowerCase();
+    const newMessages = [...chatHistory, { type: "user", text: text }];
+
+    let response = "I didn't catch that. Try 'urgent' or 'forecast'.";
+
+    // Simple Keyword Matching (Fake NLP)
+    if (
+      lowerText.includes("urgent") ||
+      lowerText.includes("risk") ||
+      lowerText.includes("emergency")
+    ) {
+      response = "🚨 Filtering for URGENT stock alerts...";
+      onQuery?.("urgent");
+    } else if (
+      lowerText.includes("forecast") ||
+      lowerText.includes("prediction") ||
+      lowerText.includes("inventory")
+    ) {
+      response = "📊 Showing all demand forecasts.";
+      onQuery?.("");
+    } else if (lowerText.includes("profit") || lowerText.includes("labh")) {
+      response =
+        "💰 Your projected profit is ৳45,000 this week based on current trends.";
+    } else if (lowerText.includes("stable") || lowerText.includes("good")) {
+      response = "✅ Showing stable products with sufficient stock.";
+      onQuery?.("stable");
+    } else if (
+      lowerText.includes("hello") ||
+      lowerText.includes("salam") ||
+      lowerText.includes("hi")
+    ) {
+      response = "🤖 Walaikum Assalam! How can I help your business today?";
+    } else if (lowerText.includes("help")) {
+      response = `🤖 Try saying:\n• "Show urgent stock"\n• "Check forecast"\n• "What's the profit?"\n• "Stable items"`;
+    } else if (lowerText.includes("clear") || lowerText.includes("reset")) {
+      response = "🔄 Filters cleared! Showing all products.";
+      onQuery?.("");
+    } else {
+      // Generic search
+      onQuery?.(text);
+      response = `🔍 Filtering dashboard for "${text}"...`;
+    }
+
+    newMessages.push({ type: "bot", text: response });
+    setChatHistory(newMessages);
+    setMessage("");
+  };
 
   const handleSend = (e) => {
     e.preventDefault();
     if (!message.trim()) return;
-
-    // Add user message
-    const userMessage = { type: "user", text: message };
-    setChatHistory((prev) => [...prev, userMessage]);
-
-    // Process command
-    const query = message.toLowerCase();
-    let botResponse = "";
-
-    if (query.includes("forecast") || query.includes("inventory")) {
-      onQuery?.(""); // Show all forecasts
-      botResponse = "📊 Displaying all inventory forecasts in the dashboard!";
-    } else if (query.includes("urgent")) {
-      onQuery?.("urgent");
-      botResponse =
-        "🚨 Filtering for URGENT products that need immediate attention.";
-    } else if (query.includes("stable")) {
-      onQuery?.("stable");
-      botResponse = "✅ Showing stable products with sufficient stock.";
-    } else if (query.includes("help")) {
-      botResponse = `
-🤖 Available Commands:
-• "forecast" - View all forecasts
-• "urgent" - Show urgent items
-• "stable" - Show stable items
-• "risk check" - Open COD Shield
-• "clear" - Reset filters
-      `.trim();
-    } else if (query.includes("clear") || query.includes("reset")) {
-      onQuery?.("");
-      botResponse = "🔄 Filters cleared! Showing all products.";
-    } else if (query.includes("risk")) {
-      botResponse =
-        "🛡️ Use the COD Shield panel on the right to check risk scores!";
-    } else {
-      // Generic response
-      onQuery?.(message);
-      botResponse = `🔍 Filtering dashboard for "${message}"...`;
-    }
-
-    // Add bot response
-    const botMessage = { type: "bot", text: botResponse };
-    setChatHistory((prev) => [...prev, botMessage]);
-
-    // Clear input
-    setMessage("");
+    handleCommand(message);
   };
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
 
   const quickCommands = [
     { label: "📊 Forecast", value: "forecast" },
@@ -142,6 +209,7 @@ const BhaiBotWidget = ({ onQuery }) => {
                     </div>
                   </motion.div>
                 ))}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Quick Commands */}
@@ -174,9 +242,24 @@ const BhaiBotWidget = ({ onQuery }) => {
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a command..."
+                    placeholder="Type or speak your command..."
                     className="flex-1 bg-cyber-night border border-jamdani-teal/50 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon-green transition-colors"
                   />
+                  <button
+                    type="button"
+                    onClick={toggleListen}
+                    className={`p-2 rounded-lg transition-all ${
+                      isListening
+                        ? "bg-red-500 animate-pulse shadow-neon"
+                        : "bg-jamdani-teal/20 hover:bg-jamdani-teal/30 border border-jamdani-teal/50"
+                    }`}
+                  >
+                    <Mic
+                      className={`w-5 h-5 ${
+                        isListening ? "text-white" : "text-jamdani-teal"
+                      }`}
+                    />
+                  </button>
                   <button
                     type="submit"
                     disabled={!message.trim()}

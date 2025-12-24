@@ -43,7 +43,7 @@ Open app: Prompt "Scan with WhatsApp to Begin" (with voice readout option).
 Post-Scan: QR animates to green check; auto-redirects to dashboard via Supabase websocket.
 API Wizards: Stepper for integrations (e.g., one-tap OAuth); progress bar with neon fill.
 
-Innovative Magic: If voice-enabled, Bhai-Bot says "Swagotom! Let's link your store" in Bangla/English.
+Innovative Magic: If voice-enabled, Bhai-Bot says "Assalamu Alaikum! Let's link your store" in Bangla/English.
 Refinement: Skip button for demo mode (mock data); error handling with friendly retries (e.g., "Network issue? Try again!").
 
 

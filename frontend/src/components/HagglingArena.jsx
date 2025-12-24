@@ -7,6 +7,7 @@ const HagglingArena = () => {
   const [currentPrice, setCurrentPrice] = useState(550);
   const [isSimulating, setIsSimulating] = useState(false);
   const [result, setResult] = useState(null);
+  const [priceApplied, setPriceApplied] = useState(false);
 
   // Mock products for demo
   const products = [
@@ -20,6 +21,7 @@ const HagglingArena = () => {
   const handleSimulation = async () => {
     setIsSimulating(true);
     setResult(null);
+    setPriceApplied(false); // Reset when running new simulation
 
     // Simulate negotiation scenarios
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -411,9 +413,36 @@ const HagglingArena = () => {
                 </div>
 
                 {/* Action Button */}
-                <button className="w-full glass-card py-3 border-2 border-neon-green hover:bg-neon-green/10 transition-all text-white font-bold">
-                  Apply This Pricing Strategy
-                </button>
+                {!priceApplied ? (
+                  <button
+                    onClick={() => {
+                      setPriceApplied(true);
+                      // In production, this would update the product price in database
+                      console.log(
+                        `✅ Price strategy applied: ৳${currentPrice} for ${selectedProduct.name}`
+                      );
+                    }}
+                    className="w-full glass-card py-3 border-2 border-neon-green hover:bg-neon-green hover:text-cyber-night transition-all text-white font-bold"
+                  >
+                    Apply This Pricing Strategy
+                  </button>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full glass-card py-3 border-2 border-neon-green bg-neon-green/20 text-center"
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-neon-green" />
+                      <span className="text-neon-green font-bold">
+                        ✅ Pricing Strategy Applied!
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Product price updated to ৳{currentPrice.toLocaleString()}
+                    </p>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
